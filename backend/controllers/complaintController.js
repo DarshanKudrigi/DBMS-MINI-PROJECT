@@ -123,15 +123,51 @@ export async function getMyComplaints(req, res) {
 
 export async function getComplaintDetails(req, res) {
   const complaintId = Number(req.params.id);
-  const studentId = String(req.user.id);
+  const userId = String(req.user.id);
+  const userRole = req.user.role;
+  const userCategory = req.user.category;
 
   if (!Number.isFinite(complaintId)) {
     return res.status(400).json({ message: "Invalid complaint id" });
   }
 
   try {
-    const [complaints] = await pool.execute(
-      `SELECT
+    let query;
+    let params;
+
+    if (userRole === "admin") {
+      // Admin can view complaints from their category
+      query = `SELECT
+        c.complaint_id AS id,
+        c.student_id,
+        c.title,
+        c.description,
+        c.category,
+        c.issue_type,
+        c.submitted_at AS created_at,
+        s.name AS student_name,
+        s.email AS student_email,
+        s.phone AS student_phone,
+        COALESCE(
+          LOWER(REPLACE(cs.status, ' ', '_')),
+          'pending'
+        ) AS status
+      FROM complaint c
+      JOIN student s ON c.student_id = s.student_id
+      LEFT JOIN (
+        SELECT complaint_id, status
+        FROM complaint_status
+        WHERE status_id IN (
+          SELECT MAX(status_id)
+          FROM complaint_status
+          GROUP BY complaint_id
+        )
+      ) cs ON cs.complaint_id = c.complaint_id
+      WHERE c.complaint_id = ? AND c.category = ?`;
+      params = [complaintId, userCategory];
+    } else {
+      // Student can only view their own complaints
+      query = `SELECT
         c.complaint_id AS id,
         c.student_id,
         c.title,
@@ -153,9 +189,11 @@ export async function getComplaintDetails(req, res) {
           GROUP BY complaint_id
         )
       ) cs ON cs.complaint_id = c.complaint_id
-      WHERE c.complaint_id = ? AND c.student_id = ?`,
-      [complaintId, studentId]
-    );
+      WHERE c.complaint_id = ? AND c.student_id = ?`;
+      params = [complaintId, userId];
+    }
+
+    const [complaints] = await pool.execute(query, params);
 
     if (complaints.length === 0) {
       return res.status(404).json({ message: "Complaint not found" });

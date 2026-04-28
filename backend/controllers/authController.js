@@ -126,7 +126,15 @@ export async function loginAdmin(req, res) {
       return res.status(401).json({ message: "Wrong password" });
     }
 
-    const token = signToken({ id: admin.admin_id, role: "admin", name: admin.name });
+    // Fetch admin's category
+    const [adminDetails] = await pool.execute(
+      "SELECT category FROM admin WHERE admin_id = ?",
+      [admin.admin_id]
+    );
+
+    const category = adminDetails.length > 0 ? adminDetails[0].category : null;
+
+    const token = signToken({ id: admin.admin_id, role: "admin", name: admin.name, category });
 
     return res.status(200).json({
       message: "Admin login successful",
@@ -135,7 +143,8 @@ export async function loginAdmin(req, res) {
         id: admin.admin_id,
         role: "admin",
         name: admin.name,
-        email: admin.email
+        email: admin.email,
+        category
       }
     });
   } catch (error) {

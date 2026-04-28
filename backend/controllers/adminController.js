@@ -24,11 +24,18 @@ function fromDatabaseStatus(status) {
 
 export async function getAllComplaints(req, res) {
   try {
+    const adminCategory = req.user.category;
+
+    if (!adminCategory) {
+      return res.status(400).json({ message: "Admin category not found" });
+    }
+
     const [rows] = await pool.execute(
       `SELECT
         c.complaint_id AS id,
         c.title,
         c.description,
+        c.category,
         COALESCE(
           LOWER(REPLACE(cs.status, ' ', '_')),
           'pending'
@@ -48,7 +55,9 @@ export async function getAllComplaints(req, res) {
           GROUP BY complaint_id
         )
       ) cs ON cs.complaint_id = c.complaint_id
-      ORDER BY c.complaint_id DESC`
+      WHERE c.category = ?
+      ORDER BY c.complaint_id DESC`,
+      [adminCategory]
     );
 
     return res.json({ data: rows.map((row) => ({ ...row, status: fromDatabaseStatus(row.status) })) });
@@ -59,7 +68,7 @@ export async function getAllComplaints(req, res) {
 
 export async function updateComplaintStatus(req, res) {
   const complaintId = Number(req.params.id);
-  const { status } = req.body;
+  const { status, remarks } = req.body;
   const allowed = ["pending", "in_progress", "resolved", "rejected"];
 
   if (!allowed.includes(status)) {
@@ -75,9 +84,12 @@ export async function updateComplaintStatus(req, res) {
       return res.status(404).json({ message: "Complaint not found" });
     }
 
+    const displayStatus = toDisplayStatus(status);
+    const remarksText = remarks && remarks.trim() ? remarks.trim() : `Status changed to ${displayStatus}`;
+
     const [result] = await pool.execute(
       "INSERT INTO complaint_status (status, remarks, updated_by, complaint_id) VALUES (?, ?, ?, ?)",
-      [toDisplayStatus(status), `Status changed to ${toDisplayStatus(status)}`, req.user.id, complaintId]
+      [displayStatus, remarksText, req.user.id, complaintId]
     );
 
     return res.json({ message: "Status updated", status, status_id: result.insertId });

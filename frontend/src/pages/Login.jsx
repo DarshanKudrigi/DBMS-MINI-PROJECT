@@ -21,17 +21,20 @@ function Login() {
   };
 
   const handleSubmit = async (event) => {
-    event.preventDefault();
+    if (event) {
+      event.preventDefault();
+    }
     setError("");
     setLoading(true);
 
     try {
       const data = await loginUser(activeTab, form);
       login(data.token, data.user);
-      navigate(activeTab === "admin" ? "/admin" : "/dashboard");
+      setTimeout(() => {
+        navigate(activeTab === "admin" ? "/admin" : "/dashboard");
+      }, 100);
     } catch (err) {
       setError(err.message);
-    } finally {
       setLoading(false);
     }
   };

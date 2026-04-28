@@ -68,18 +68,22 @@ export async function getAllComplaints(token) {
   }
 }
 
-export async function updateComplaintStatus(id, status, token) {
+export async function getComplaintDetails(complaintId, token) {
   try {
-    const response = await api.patch(`/admin/complaints/${id}/status`, { status }, buildConfig(token));
+    const response = await api.get(`/complaints/${complaintId}`, buildConfig(token));
     return response.data;
   } catch (error) {
     throw new Error(getErrorMessage(error));
   }
 }
 
-export async function getComplaintDetails(id, token) {
+export async function updateComplaintStatus(complaintId, status, token, remarks = '') {
   try {
-    const response = await api.get(`/complaints/${id}`, buildConfig(token));
+    const response = await api.patch(
+      `/admin/complaints/${complaintId}/status`,
+      { status, remarks },
+      buildConfig(token)
+    );
     return response.data;
   } catch (error) {
     throw new Error(getErrorMessage(error));
