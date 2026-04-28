@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import pool from "../config/db.js";
+import { COMPLAINT_CATEGORIES } from "../constants/categories.js";
 
 const STUDENT_USN_REGEX = /^[0-9][A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{3}$/;
 
@@ -13,13 +14,13 @@ function signToken(payload) {
 
 export async function registerStudent(req, res) {
   try {
-    const { student_id: rawStudentId, name, email, phone, password, dept_id: deptId } = req.body;
+    const { student_id: rawStudentId, name, email, phone, password } = req.body;
     const studentId = String(rawStudentId || "").trim().toUpperCase();
 
-    if (!studentId || !name || !email || !phone || !password || !deptId) {
+    if (!studentId || !name || !email || !phone || !password) {
       return res
         .status(400)
-        .json({ message: "student_id, name, email, phone, password, and dept_id are required" });
+        .json({ message: "student_id, name, email, phone, and password are required" });
     }
 
     if (!STUDENT_USN_REGEX.test(studentId)) {
@@ -38,8 +39,8 @@ export async function registerStudent(req, res) {
     }
 
     const [result] = await pool.execute(
-      "INSERT INTO student (student_id, name, email, phone, password_hash, dept_id) VALUES (?, ?, ?, ?, ?, ?)",
-      [studentId, name, email, phone, password, deptId]
+      "INSERT INTO student (student_id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)",
+      [studentId, name, email, phone, password]
     );
 
     return res.status(201).json({
@@ -48,15 +49,10 @@ export async function registerStudent(req, res) {
         id: studentId,
         name,
         email,
-        phone,
-        dept_id: Number(deptId)
+        phone
       }
     });
   } catch (error) {
-    if (error.code === "ER_NO_REFERENCED_ROW_2") {
-      return res.status(400).json({ message: "Invalid dept_id: department does not exist" });
-    }
-
     return res.status(500).json({ message: "Failed to register student" });
   }
 }
@@ -151,14 +147,10 @@ export async function loginAdmin(req, res) {
   }
 }
 
-export async function getDepartments(req, res) {
+export async function getCategories(req, res) {
   try {
-    const [rows] = await pool.execute(
-      "SELECT dept_id, dept_name FROM department ORDER BY dept_name ASC"
-    );
-
-    return res.status(200).json({ data: rows });
+    return res.status(200).json({ data: COMPLAINT_CATEGORIES });
   } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch departments" });
+    return res.status(500).json({ message: "Failed to fetch categories" });
   }
 }

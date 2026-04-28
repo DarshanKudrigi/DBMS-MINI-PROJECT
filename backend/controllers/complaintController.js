@@ -22,29 +22,55 @@ function normalizeStatus(status) {
   return "pending";
 }
 
+function toDisplayStatus(status) {
+  const normalized = normalizeStatus(status);
+
+  if (normalized === "in_progress") {
+    return "In Progress";
+  }
+
+  if (normalized === "resolved") {
+    return "Resolved";
+  }
+
+  if (normalized === "rejected") {
+    return "Rejected";
+  }
+
+  return "Pending";
+}
+
 export async function createComplaint(req, res) {
-  const { title, description } = req.body;
+  const { title, description, category, issue_type: issueType } = req.body;
   const studentId = String(req.user.id);
 
-  if (!title || !description) {
-    return res.status(400).json({ message: "title and description are required" });
+  if (!title || !description || !category) {
+    return res.status(400).json({ message: "title, description, and category are required" });
   }
 
   try {
-    const [students] = await pool.execute("SELECT dept_id FROM student WHERE student_id = ?", [studentId]);
+    const [students] = await pool.execute("SELECT student_id FROM student WHERE student_id = ?", [studentId]);
 
     if (students.length === 0) {
       return res.status(404).json({ message: "Student not found" });
     }
 
     const [result] = await pool.execute(
-      "INSERT INTO complaint (title, description, category, student_id, dept_id, handled_by) VALUES (?, ?, ?, ?, ?, ?)",
-      [title, description, "Others", studentId, students[0].dept_id, null]
+      "INSERT INTO complaint (title, description, category, issue_type, student_id, handled_by) VALUES (?, ?, ?, ?, ?, ?)",
+      [title, description, category, issueType || null, studentId, null]
     );
 
     return res.status(201).json({
       message: "Complaint submitted",
-      complaint: { id: result.insertId, student_id: studentId, title, description, status: "pending" }
+      complaint: {
+        id: result.insertId,
+        student_id: studentId,
+        title,
+        description,
+        category,
+        issue_type: issueType || null,
+        status: "pending"
+      }
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to submit complaint", error: error.message });
@@ -61,6 +87,8 @@ export async function getMyComplaints(req, res) {
         c.student_id,
         c.title,
         c.description,
+        c.category,
+        c.issue_type,
         COALESCE(
           LOWER(REPLACE(cs.status, ' ', '_')),
           'pending'
@@ -81,8 +109,85 @@ export async function getMyComplaints(req, res) {
       [studentId]
     );
 
-    return res.json({ data: rows.map((row) => ({ ...row, status: normalizeStatus(row.status) })) });
+    return res.json({
+      data: rows.map((row) => ({
+        ...row,
+        status: normalizeStatus(row.status),
+        latest_status_label: toDisplayStatus(row.status)
+      }))
+    });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch complaints", error: error.message });
+  }
+}
+
+export async function getComplaintDetails(req, res) {
+  const complaintId = Number(req.params.id);
+  const studentId = String(req.user.id);
+
+  if (!Number.isFinite(complaintId)) {
+    return res.status(400).json({ message: "Invalid complaint id" });
+  }
+
+  try {
+    const [complaints] = await pool.execute(
+      `SELECT
+        c.complaint_id AS id,
+        c.student_id,
+        c.title,
+        c.description,
+        c.category,
+        c.issue_type,
+        c.submitted_at AS created_at,
+        COALESCE(
+          LOWER(REPLACE(cs.status, ' ', '_')),
+          'pending'
+        ) AS status
+      FROM complaint c
+      LEFT JOIN (
+        SELECT complaint_id, status
+        FROM complaint_status
+        WHERE status_id IN (
+          SELECT MAX(status_id)
+          FROM complaint_status
+          GROUP BY complaint_id
+        )
+      ) cs ON cs.complaint_id = c.complaint_id
+      WHERE c.complaint_id = ? AND c.student_id = ?`,
+      [complaintId, studentId]
+    );
+
+    if (complaints.length === 0) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    const [historyRows] = await pool.execute(
+      `SELECT
+        cs.status,
+        cs.remarks,
+        cs.updated_at,
+        a.name AS updated_by_name
+      FROM complaint_status cs
+      JOIN admin a ON cs.updated_by = a.admin_id
+      WHERE cs.complaint_id = ?
+      ORDER BY cs.updated_at ASC, cs.status_id ASC`,
+      [complaintId]
+    );
+
+    const complaint = complaints[0];
+
+    return res.json({
+      data: {
+        ...complaint,
+        status: normalizeStatus(complaint.status),
+        latest_status_label: toDisplayStatus(complaint.status),
+        status_history: historyRows.map((row) => ({
+          ...row,
+          status: toDisplayStatus(row.status)
+        }))
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch complaint details", error: error.message });
   }
 }

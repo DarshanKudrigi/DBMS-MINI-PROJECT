@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-	getDepartments,
+	getCategories,
 	loginAdmin,
 	loginStudent,
 	registerStudent
@@ -11,6 +11,6 @@ const router = Router();
 router.post("/register", registerStudent);
 router.post("/login/student", loginStudent);
 router.post("/login/admin", loginAdmin);
-router.get("/departments", getDepartments);
+router.get("/categories", getCategories);
 
 export default router;

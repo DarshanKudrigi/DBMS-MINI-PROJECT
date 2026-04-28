@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { getDepartments, registerUser } from "../services/api";
+import { registerUser } from "../services/api";
 
 function Register() {
   const navigate = useNavigate();
@@ -10,25 +10,10 @@ function Register() {
     email: "",
     phone: "",
     password: "",
-    confirmPassword: "",
-    dept_id: ""
+    confirmPassword: ""
   });
-  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const loadDepartments = async () => {
-      try {
-        const data = await getDepartments();
-        setDepartments(data.data || []);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-
-    loadDepartments();
-  }, []);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -60,8 +45,7 @@ function Register() {
         name: form.name,
         email: form.email,
         phone: form.phone,
-        password: form.password,
-        dept_id: Number(form.dept_id)
+        password: form.password
       });
       navigate("/login");
     } catch (err) {
@@ -119,20 +103,6 @@ function Register() {
             onChange={handleChange}
             required
           />
-          <select
-            className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            name="dept_id"
-            value={form.dept_id}
-            onChange={handleChange}
-            required
-          >
-            <option value="">Select Department</option>
-            {departments.map((dept) => (
-              <option key={dept.dept_id} value={dept.dept_id}>
-                {dept.dept_name}
-              </option>
-            ))}
-          </select>
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             name="password"
