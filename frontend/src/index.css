@@ -2,9 +2,87 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(180deg, #f8fbff 0%, #f4f7ff 100%);
+    color: #1f2937;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
 body {
-  margin: 0;
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f6f7fb;
-  color: #1f2937;
+  min-height: 100vh;
+}
+
+@layer utilities {
+  @keyframes float-slow {
+    0%,
+    100% {
+      transform: translateY(0) translateX(0);
+    }
+
+    50% {
+      transform: translateY(-14px) translateX(10px);
+    }
+  }
+
+  @keyframes float-slower {
+    0%,
+    100% {
+      transform: translateY(0) translateX(0) scale(1);
+    }
+
+    50% {
+      transform: translateY(18px) translateX(-12px) scale(1.04);
+    }
+  }
+
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes modal-pop {
+    0% {
+      opacity: 0;
+      transform: translateY(18px) scale(0.98);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-float-slow {
+    animation: float-slow 12s ease-in-out infinite;
+  }
+
+  .animate-float-slower {
+    animation: float-slower 16s ease-in-out infinite;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.7s ease-out both;
+  }
+
+  .animate-modal-pop {
+    animation: modal-pop 0.25s ease-out both;
+  }
 }

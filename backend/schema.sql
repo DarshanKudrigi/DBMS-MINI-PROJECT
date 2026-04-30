@@ -60,35 +60,7 @@ CREATE TABLE complaint_status (
     ON DELETE CASCADE
 );
 
-INSERT INTO student (student_id, name, email, phone, password_hash) VALUES
-  ('4NI24IS040', 'Riya Patel', 'riya.patel@college.edu', '9876543210', 'student123'),
-  ('4NI23CS123', 'Karan Singh', 'karan.singh@college.edu', '9876543211', 'student123'),
-  ('4NI24ME015', 'Meera Nair', 'meera.nair@college.edu', '9876543212', 'student123');
-
-INSERT INTO admin (name, email, password_hash, category) VALUES
-  ('Aarav Sharma', 'aarav.admin@college.edu', 'admin123', 'Infrastructure'),
-  ('Neha Verma', 'neha.admin@college.edu', 'admin123', 'Faculty');
-
-INSERT INTO complaint (title, description, category, issue_type, submitted_at, student_id, handled_by) VALUES
-  ('Broken Projector in Lab 3', 'Projector is not turning on during class.', 'Infrastructure', 'Classroom damage', '2026-04-20 09:15:00', '4NI24IS040', 1),
-  ('Irregular Faculty Attendance', 'Faculty missed two lectures this week without notice.', 'Faculty', 'Teaching quality issue', '2026-04-20 11:00:00', '4NI23CS123', 2),
-  ('Library Wi-Fi Slow', 'Wi-Fi speed in reading hall is extremely slow.', 'Library', 'Noise problem', '2026-04-21 14:30:00', '4NI24IS040', 2),
-  ('Hostel Water Supply Issue', 'No water on second floor since morning.', 'Hostel', 'Water problem', '2026-04-22 07:50:00', '4NI24ME015', 1),
-  ('Campus Cleanliness Concern', 'Waste bins near canteen are not cleared regularly.', 'Others', 'Others', '2026-04-23 16:10:00', '4NI24ME015', 1);
-
-INSERT INTO complaint_status (status, remarks, updated_by, updated_at, complaint_id) VALUES
-  ('Pending', 'Complaint received and queued.', 1, '2026-04-20 09:20:00', 1),
-  ('In Progress', 'Technician assigned to inspect projector.', 1, '2026-04-20 12:00:00', 1),
-  ('Resolved', 'Projector lamp replaced and tested.', 1, '2026-04-21 10:30:00', 1),
-
-  ('Pending', 'Complaint logged for review.', 2, '2026-04-20 11:05:00', 2),
-  ('Rejected', 'Attendance records do not support the claim.', 2, '2026-04-21 09:45:00', 2),
-
-  ('Pending', 'Issue recorded.', 2, '2026-04-21 14:35:00', 3),
-  ('In Progress', 'Network team reviewing access point load.', 2, '2026-04-22 10:00:00', 3),
-
-  ('Pending', 'Hostel complaint registered.', 1, '2026-04-22 08:00:00', 4),
-  ('Resolved', 'Water pump restarted and pressure restored.', 1, '2026-04-22 11:20:00', 4),
-
-  ('Pending', 'Forwarded to maintenance staff.', 1, '2026-04-23 16:20:00', 5),
-  ('In Progress', 'Daily cleaning roster updated.', 1, '2026-04-24 09:00:00', 5);
+CREATE TABLE DEPARTMENT (
+  department_id INT AUTO_INCREMENT PRIMARY KEY,
+  DEPT_NAME VARCHAR(100) NOT NULL UNIQUE
+); 
