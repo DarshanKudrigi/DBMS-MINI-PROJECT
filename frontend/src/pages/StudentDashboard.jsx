@@ -69,6 +69,7 @@ function StudentDashboard() {
         value: complaints.length,
         accent: "from-slate-500 to-slate-700",
         tint: "bg-slate-50",
+        borderColor: "border-slate-200",
         valueColor: "text-slate-700"
       },
       {
@@ -76,6 +77,7 @@ function StudentDashboard() {
         value: complaints.filter((c) => c.status === "pending").length,
         accent: "from-amber-500 to-amber-700",
         tint: "bg-amber-50",
+        borderColor: "border-amber-200",
         valueColor: "text-amber-800"
       },
       {
@@ -83,6 +85,7 @@ function StudentDashboard() {
         value: complaints.filter((c) => c.status === "in_progress").length,
         accent: "from-indigo-500 to-indigo-700",
         tint: "bg-indigo-50",
+        borderColor: "border-indigo-200",
         valueColor: "text-indigo-700"
       },
       {
@@ -90,6 +93,7 @@ function StudentDashboard() {
         value: complaints.filter((c) => c.status === "resolved" || c.status === "rejected").length,
         accent: "from-emerald-500 to-emerald-700",
         tint: "bg-emerald-50",
+        borderColor: "border-emerald-200",
         valueColor: "text-emerald-800"
       }
     ],
@@ -172,7 +176,7 @@ function StudentDashboard() {
           <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {dashboardStats.map((stat) => (
               <article
-                className={`relative overflow-hidden rounded-3xl border border-white/80 bg-white/90 p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.tint}`}
+                className={`relative overflow-hidden rounded-3xl border p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl ${stat.borderColor} ${stat.tint}`}
                 key={stat.label}
               >
                 <div className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r ${stat.accent}`} />
