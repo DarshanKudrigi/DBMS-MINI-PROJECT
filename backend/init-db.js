@@ -27,14 +27,6 @@ async function initializeDatabase() {
     console.log("📝 Executing schema.sql...");
     await connection.query(schema);
 
-    console.log("✅ Database initialized successfully!");
-    console.log("📊 Departments created:");
-    console.log("   1. Computer Science");
-    console.log("   2. Electronics & Communication");
-    console.log("   3. Mechanical Engineering");
-    console.log("   4. Civil Engineering");
-    console.log("   5. Electrical & Electronics");
-    console.log("   6. Computer Science Engineering - (AI & ML)");
 
     await connection.end();
     process.exit(0);
