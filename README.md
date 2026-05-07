@@ -1,4 +1,4 @@
-# DBMS-MINI PROJECT
+# DBMS-MINI PROJECT 1
 
 Clean, minimal student complaint management system built with React (Vite), Node.js/Express and MySQL.
 
