@@ -7,3 +7,5 @@ backend/.env
 dist/
 frontend/dist/
 backend/dist/
+build/
+frontend/build/
