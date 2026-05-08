@@ -59,9 +59,27 @@ export async function createComplaint(payload, token) {
   }
 }
 
+export async function getDepartments(token) {
+  try {
+    const response = await api.get("/complaints/departments", buildConfig(token));
+    return response.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
 export async function getAllComplaints(token) {
   try {
     const response = await api.get("/admin/complaints", buildConfig(token));
+    return response.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
+export async function getAdmins(token) {
+  try {
+    const response = await api.get("/admin/admins", buildConfig(token));
     return response.data;
   } catch (error) {
     throw new Error(getErrorMessage(error));

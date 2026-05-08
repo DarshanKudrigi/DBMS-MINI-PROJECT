@@ -68,7 +68,7 @@ function ComplaintCard({ complaint, onClick }) {
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Department</p>
-          <p className="mt-1 font-medium text-slate-800">{complaint.dept_name}</p>
+          <p className="mt-1 font-medium text-slate-800">{complaint.dept_name || "Not specified"}</p>
         </div>
         <div>
           <p className="text-xs uppercase tracking-[0.14em] text-slate-400">Submitted</p>

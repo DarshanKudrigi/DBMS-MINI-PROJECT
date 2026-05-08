@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAllComplaints, getComplaintDetails, updateComplaintStatus } from '../services/api';
+import { getAdmins, getAllComplaints, getComplaintDetails, updateComplaintStatus } from '../services/api';
 
 function AdminDashboard() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [stats, setStats] = useState({ pending: 0, in_progress: 0, resolved: 0, rejected: 0 });
+  const [admins, setAdmins] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -13,6 +14,7 @@ function AdminDashboard() {
   const [updateStatusValue, setUpdateStatusValue] = useState('');
   const [updateRemarks, setUpdateRemarks] = useState('');
   const [submitStatus, setSubmitStatus] = useState(''); // pending, success, error
+  const [error, setError] = useState('');
 
   // Decode JWT and get user info
   useEffect(() => {
@@ -41,7 +43,8 @@ function AdminDashboard() {
       setLoading(true);
       try {
         const response = await getAllComplaints(token);
-        let filteredComplaints = response.data || [];
+        const allComplaints = response.data || [];
+        let filteredComplaints = allComplaints;
 
         // Filter by status if not 'all'
         if (selectedStatus !== 'all') {
@@ -52,9 +55,6 @@ function AdminDashboard() {
 
         setComplaints(filteredComplaints);
 
-        // Calculate stats from all complaints
-        const allResponse = await getAllComplaints(token);
-        const allComplaints = allResponse.data || [];
         const statsData = {
           pending: allComplaints.filter((c) => c.status === 'pending').length,
           in_progress: allComplaints.filter((c) => c.status === 'in_progress').length,
@@ -62,8 +62,16 @@ function AdminDashboard() {
           rejected: allComplaints.filter((c) => c.status === 'rejected').length
         };
         setStats(statsData);
+
+        if (user?.role === 'super_admin') {
+          const adminResponse = await getAdmins(token);
+          setAdmins(adminResponse.data || []);
+        } else {
+          setAdmins([]);
+        }
       } catch (error) {
         console.error('Failed to fetch complaints:', error);
+        setError(error.message || 'Failed to fetch dashboard data');
         setComplaints([]);
       } finally {
         setLoading(false);
@@ -71,7 +79,7 @@ function AdminDashboard() {
     };
 
     fetchComplaints();
-  }, [token, selectedStatus]);
+  }, [token, selectedStatus, user?.role]);
 
   // Handle view complaint detail
   const handleViewComplaint = useCallback(
@@ -174,6 +182,14 @@ function AdminDashboard() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
+  const totalStats = stats.pending + stats.in_progress + stats.resolved + stats.rejected;
+  const chartItems = [
+    { label: 'Pending', value: stats.pending, className: 'bg-yellow-500' },
+    { label: 'In Progress', value: stats.in_progress, className: 'bg-blue-500' },
+    { label: 'Resolved', value: stats.resolved, className: 'bg-green-500' },
+    { label: 'Rejected', value: stats.rejected, className: 'bg-red-500' }
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -184,7 +200,7 @@ function AdminDashboard() {
               <h2 className="text-xl font-bold text-gray-900">Admin Dashboard</h2>
               <div className="h-6 border-l border-gray-300"></div>
               <div className="inline-block bg-blue-100 text-blue-700 rounded-full px-4 py-1 text-sm font-medium">
-                {user.category || 'Category'}
+                {user.role === 'super_admin' ? 'Super Admin' : user.dept_name || 'Department'}
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -221,6 +237,72 @@ function AdminDashboard() {
             <p className="text-4xl font-bold text-red-700">{stats.rejected}</p>
             <p className="text-sm font-medium text-red-600 mt-1">Rejected</p>
           </div>
+        </div>
+
+        {error ? (
+          <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+        ) : null}
+
+        <div className="grid gap-6 mb-8 lg:grid-cols-2">
+          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-gray-800">Status Graph</h3>
+              <span className="text-xs font-medium text-gray-500">{totalStats} complaints</span>
+            </div>
+            <div className="mt-5 space-y-4">
+              {chartItems.map((item) => (
+                <div key={item.label}>
+                  <div className="mb-1 flex items-center justify-between text-xs font-medium text-gray-600">
+                    <span>{item.label}</span>
+                    <span>{item.value}</span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+                    <div
+                      className={`h-full rounded-full ${item.className}`}
+                      style={{ width: `${totalStats ? Math.max((item.value / totalStats) * 100, item.value ? 6 : 0) : 0}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800">
+              {user.role === 'super_admin' ? 'Admin Control' : 'Department Scope'}
+            </h3>
+            {user.role === 'super_admin' ? (
+              <div className="mt-4 max-h-64 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2 text-left">Admin</th>
+                      <th className="px-3 py-2 text-left">Department</th>
+                      <th className="px-3 py-2 text-left">Complaints</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {admins.map((admin) => (
+                      <tr key={admin.admin_id} className="border-b border-gray-100">
+                        <td className="px-3 py-2">
+                          <p className="font-medium text-gray-800">{admin.name}</p>
+                          <p className="text-xs text-gray-500">{admin.email}</p>
+                        </td>
+                        <td className="px-3 py-2 text-gray-700">
+                          {admin.role === 'super_admin' ? 'All departments' : admin.dept_name || 'N/A'}
+                        </td>
+                        <td className="px-3 py-2 font-semibold text-gray-800">{admin.total_complaints || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm leading-6 text-gray-600">
+                You can view and update all complaint categories from {user.dept_name || 'your department'}.
+              </p>
+            )}
+          </section>
         </div>
 
         {/* Filter Tabs */}
@@ -268,6 +350,9 @@ function AdminDashboard() {
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">
                     Category
                   </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">
+                    Department
+                  </th>
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Date</th>
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Status</th>
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Action</th>
@@ -283,6 +368,7 @@ function AdminDashboard() {
                     <td className="px-6 py-4 text-gray-900 font-medium">{complaint.title}</td>
                     <td className="px-6 py-4 text-gray-700">{complaint.student_name}</td>
                     <td className="px-6 py-4 text-gray-700">{complaint.category || 'N/A'}</td>
+                    <td className="px-6 py-4 text-gray-700">{complaint.dept_name || 'N/A'}</td>
                     <td className="px-6 py-4 text-gray-700">
                       {new Date(complaint.created_at || complaint.submitted_at).toLocaleDateString()}
                     </td>
@@ -357,6 +443,10 @@ function AdminDashboard() {
                 <div>
                   <p className="text-xs text-gray-400">Category</p>
                   <p className="text-sm font-medium text-gray-800">{selectedComplaint.category}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Department</p>
+                  <p className="text-sm font-medium text-gray-800">{selectedComplaint.dept_name || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Date</p>

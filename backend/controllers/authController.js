@@ -111,7 +111,17 @@ export async function loginAdmin(req, res) {
     }
 
     const [admins] = await pool.execute(
-      "SELECT admin_id, name, email, password_hash FROM admin WHERE email = ?",
+      `SELECT
+        a.admin_id,
+        a.name,
+        a.email,
+        a.password_hash,
+        a.role,
+        a.department_id,
+        d.dept_name
+      FROM admin a
+      LEFT JOIN department d ON a.department_id = d.department_id
+      WHERE a.email = ?`,
       [email]
     );
 
@@ -126,25 +136,24 @@ export async function loginAdmin(req, res) {
       return res.status(401).json({ message: "Wrong password" });
     }
 
-    // Fetch admin's category
-    const [adminDetails] = await pool.execute(
-      "SELECT category FROM admin WHERE admin_id = ?",
-      [admin.admin_id]
-    );
-
-    const category = adminDetails.length > 0 ? adminDetails[0].category : null;
-
-    const token = signToken({ id: admin.admin_id, role: "admin", name: admin.name, category });
+    const token = signToken({
+      id: admin.admin_id,
+      role: admin.role,
+      name: admin.name,
+      department_id: admin.department_id,
+      dept_name: admin.dept_name
+    });
 
     return res.status(200).json({
       message: "Admin login successful",
       token,
       user: {
         id: admin.admin_id,
-        role: "admin",
+        role: admin.role,
         name: admin.name,
         email: admin.email,
-        category
+        department_id: admin.department_id,
+        dept_name: admin.dept_name
       }
     });
   } catch (error) {

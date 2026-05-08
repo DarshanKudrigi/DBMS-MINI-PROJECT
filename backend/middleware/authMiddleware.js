@@ -32,8 +32,16 @@ export async function authMiddleware(req, res, next) {
 }
 
 export function adminOnly(req, res, next) {
-  if (!req.user || req.user.role !== "admin") {
+  if (!req.user || !["admin", "super_admin"].includes(req.user.role)) {
     return res.status(403).json({ message: "Admin access required" });
+  }
+
+  return next();
+}
+
+export function superAdminOnly(req, res, next) {
+  if (!req.user || req.user.role !== "super_admin") {
+    return res.status(403).json({ message: "Super admin access required" });
   }
 
   return next();

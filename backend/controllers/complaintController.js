@@ -41,11 +41,12 @@ function toDisplayStatus(status) {
 }
 
 export async function createComplaint(req, res) {
-  const { title, description, category, issue_type: issueType } = req.body;
+  const { title, description, category, department_id: departmentId, issue_type: issueType } = req.body;
   const studentId = String(req.user.id);
+  const parsedDepartmentId = Number(departmentId);
 
-  if (!title || !description || !category) {
-    return res.status(400).json({ message: "title, description, and category are required" });
+  if (!title || !description || !category || !Number.isInteger(parsedDepartmentId)) {
+    return res.status(400).json({ message: "title, description, category, and department are required" });
   }
 
   try {
@@ -55,9 +56,18 @@ export async function createComplaint(req, res) {
       return res.status(404).json({ message: "Student not found" });
     }
 
+    const [departments] = await pool.execute(
+      "SELECT department_id, dept_name FROM department WHERE department_id = ?",
+      [parsedDepartmentId]
+    );
+
+    if (departments.length === 0) {
+      return res.status(400).json({ message: "Invalid department" });
+    }
+
     const [result] = await pool.execute(
-      "INSERT INTO complaint (title, description, category, issue_type, student_id, handled_by) VALUES (?, ?, ?, ?, ?, ?)",
-      [title, description, category, issueType || null, studentId, null]
+      "INSERT INTO complaint (title, description, category, issue_type, student_id, department_id, handled_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [title, description, category, issueType || null, studentId, parsedDepartmentId, null]
     );
 
     return res.status(201).json({
@@ -68,6 +78,8 @@ export async function createComplaint(req, res) {
         title,
         description,
         category,
+        department_id: parsedDepartmentId,
+        dept_name: departments[0].dept_name,
         issue_type: issueType || null,
         status: "pending"
       }
@@ -88,6 +100,8 @@ export async function getMyComplaints(req, res) {
         c.title,
         c.description,
         c.category,
+        c.department_id,
+        d.dept_name,
         c.issue_type,
         COALESCE(
           LOWER(REPLACE(cs.status, ' ', '_')),
@@ -95,6 +109,7 @@ export async function getMyComplaints(req, res) {
         ) AS status,
         c.submitted_at AS created_at
       FROM complaint c
+      JOIN department d ON c.department_id = d.department_id
       LEFT JOIN (
         SELECT complaint_id, status
         FROM complaint_status
@@ -125,7 +140,8 @@ export async function getComplaintDetails(req, res) {
   const complaintId = Number(req.params.id);
   const userId = String(req.user.id);
   const userRole = req.user.role;
-  const userCategory = req.user.category;
+  const isSuperAdmin = userRole === "super_admin";
+  const adminDepartmentId = Number(req.user.department_id);
 
   if (!Number.isFinite(complaintId)) {
     return res.status(400).json({ message: "Invalid complaint id" });
@@ -135,14 +151,19 @@ export async function getComplaintDetails(req, res) {
     let query;
     let params;
 
-    if (userRole === "admin") {
-      // Admin can view complaints from their category
+    if (userRole === "admin" || isSuperAdmin) {
+      if (!isSuperAdmin && !Number.isFinite(adminDepartmentId)) {
+        return res.status(400).json({ message: "Admin department not found" });
+      }
+
       query = `SELECT
         c.complaint_id AS id,
         c.student_id,
         c.title,
         c.description,
         c.category,
+        c.department_id,
+        d.dept_name,
         c.issue_type,
         c.submitted_at AS created_at,
         s.name AS student_name,
@@ -154,6 +175,7 @@ export async function getComplaintDetails(req, res) {
         ) AS status
       FROM complaint c
       JOIN student s ON c.student_id = s.student_id
+      JOIN department d ON c.department_id = d.department_id
       LEFT JOIN (
         SELECT complaint_id, status
         FROM complaint_status
@@ -163,8 +185,8 @@ export async function getComplaintDetails(req, res) {
           GROUP BY complaint_id
         )
       ) cs ON cs.complaint_id = c.complaint_id
-      WHERE c.complaint_id = ? AND c.category = ?`;
-      params = [complaintId, userCategory];
+      WHERE c.complaint_id = ? ${isSuperAdmin ? "" : "AND c.department_id = ?"}`;
+      params = isSuperAdmin ? [complaintId] : [complaintId, adminDepartmentId];
     } else {
       // Student can only view their own complaints
       query = `SELECT
@@ -173,6 +195,8 @@ export async function getComplaintDetails(req, res) {
         c.title,
         c.description,
         c.category,
+        c.department_id,
+        d.dept_name,
         c.issue_type,
         c.submitted_at AS created_at,
         COALESCE(
@@ -180,6 +204,7 @@ export async function getComplaintDetails(req, res) {
           'pending'
         ) AS status
       FROM complaint c
+      JOIN department d ON c.department_id = d.department_id
       LEFT JOIN (
         SELECT complaint_id, status
         FROM complaint_status
@@ -227,5 +252,17 @@ export async function getComplaintDetails(req, res) {
     });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch complaint details", error: error.message });
+  }
+}
+
+export async function getDepartments(req, res) {
+  try {
+    const [rows] = await pool.execute(
+      "SELECT department_id, dept_name FROM department ORDER BY dept_name ASC"
+    );
+
+    return res.json({ data: rows });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch departments", error: error.message });
   }
 }
