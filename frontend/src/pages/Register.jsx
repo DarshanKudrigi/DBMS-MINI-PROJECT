@@ -9,6 +9,8 @@ function Register() {
     name: "",
     email: "",
     phone: "",
+    semester: "",
+    section: "",
     password: "",
     confirmPassword: ""
   });
@@ -39,12 +41,27 @@ function Register() {
       return;
     }
 
+    const semester = Number(form.semester);
+    if (!Number.isInteger(semester) || semester < 1 || semester > 8) {
+      setError("Semester must be between 1 and 8");
+      setLoading(false);
+      return;
+    }
+
+    if (!form.section.trim()) {
+      setError("Section is required");
+      setLoading(false);
+      return;
+    }
+
     try {
       await registerUser({
         student_id: form.student_id.trim(),
-        name: form.name,
-        email: form.email,
-        phone: form.phone,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
+        semester,
+        section: form.section.trim().toUpperCase(),
         password: form.password
       });
       navigate("/login");
@@ -103,6 +120,32 @@ function Register() {
             onChange={handleChange}
             required
           />
+          <div className="grid grid-cols-2 gap-3">
+            <select
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              name="semester"
+              value={form.semester}
+              onChange={handleChange}
+              required
+            >
+              <option value="">Semester</option>
+              {[1, 2, 3, 4, 5, 6, 7, 8].map((semester) => (
+                <option key={semester} value={semester}>
+                  Semester {semester}
+                </option>
+              ))}
+            </select>
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm uppercase text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              name="section"
+              type="text"
+              placeholder="Section"
+              value={form.section}
+              onChange={handleChange}
+              maxLength={10}
+              required
+            />
+          </div>
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             name="password"

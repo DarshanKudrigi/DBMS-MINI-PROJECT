@@ -68,6 +68,15 @@ export async function getDepartments(token) {
   }
 }
 
+export async function getTags(token) {
+  try {
+    const response = await api.get("/complaints/tags", buildConfig(token));
+    return response.data;
+  } catch (error) {
+    throw new Error(getErrorMessage(error));
+  }
+}
+
 export async function getAllComplaints(token) {
   try {
     const response = await api.get("/admin/complaints", buildConfig(token));

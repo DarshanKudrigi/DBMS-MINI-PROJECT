@@ -151,6 +151,7 @@ function AdminDashboard() {
       }, 1500);
     } catch (error) {
       console.error('Failed to update complaint:', error);
+      setError(error.message || 'Failed to update complaint');
       setSubmitStatus('error');
       setUpdating(false);
     }
@@ -188,6 +189,32 @@ function AdminDashboard() {
     { label: 'In Progress', value: stats.in_progress, className: 'bg-blue-500' },
     { label: 'Resolved', value: stats.resolved, className: 'bg-green-500' },
     { label: 'Rejected', value: stats.rejected, className: 'bg-red-500' }
+  ];
+  const statusOptions = [
+    {
+      label: 'Pending',
+      value: 'pending',
+      activeClass: 'border-yellow-700 bg-yellow-600 text-white',
+      idleClass: 'border-yellow-200 bg-yellow-100 text-yellow-700 hover:border-yellow-400'
+    },
+    {
+      label: 'In Progress',
+      value: 'in_progress',
+      activeClass: 'border-blue-700 bg-blue-600 text-white',
+      idleClass: 'border-blue-200 bg-blue-100 text-blue-700 hover:border-blue-400'
+    },
+    {
+      label: 'Resolved',
+      value: 'resolved',
+      activeClass: 'border-green-700 bg-green-600 text-white',
+      idleClass: 'border-green-200 bg-green-100 text-green-700 hover:border-green-400'
+    },
+    {
+      label: 'Rejected',
+      value: 'rejected',
+      activeClass: 'border-red-700 bg-red-600 text-white',
+      idleClass: 'border-red-200 bg-red-100 text-red-700 hover:border-red-400'
+    }
   ];
 
   return (
@@ -353,6 +380,7 @@ function AdminDashboard() {
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">
                     Department
                   </th>
+                  <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Tags</th>
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Date</th>
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Status</th>
                   <th className="px-6 py-3 text-left text-xs uppercase font-semibold text-gray-500">Action</th>
@@ -369,6 +397,9 @@ function AdminDashboard() {
                     <td className="px-6 py-4 text-gray-700">{complaint.student_name}</td>
                     <td className="px-6 py-4 text-gray-700">{complaint.category || 'N/A'}</td>
                     <td className="px-6 py-4 text-gray-700">{complaint.dept_name || 'N/A'}</td>
+                    <td className="px-6 py-4 text-gray-700">
+                      {complaint.tags?.length > 0 ? complaint.tags.map((tag) => tag.tag_name).join(', ') : 'None'}
+                    </td>
                     <td className="px-6 py-4 text-gray-700">
                       {new Date(complaint.created_at || complaint.submitted_at).toLocaleDateString()}
                     </td>
@@ -430,6 +461,12 @@ function AdminDashboard() {
                     {selectedComplaint.student_phone || 'N/A'}
                   </p>
                 </div>
+                <div>
+                  <p className="text-xs text-gray-400">Profile</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    Sem {selectedComplaint.semester || '-'} / Sec {selectedComplaint.section || '-'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -447,6 +484,14 @@ function AdminDashboard() {
                 <div>
                   <p className="text-xs text-gray-400">Department</p>
                   <p className="text-sm font-medium text-gray-800">{selectedComplaint.dept_name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Tags</p>
+                  <p className="text-sm font-medium text-gray-800">
+                    {selectedComplaint.tags?.length > 0
+                      ? selectedComplaint.tags.map((tag) => tag.tag_name).join(', ')
+                      : 'None'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-gray-400">Date</p>
@@ -498,19 +543,15 @@ function AdminDashboard() {
               
               {/* Quick Action Buttons */}
               <div className="grid grid-cols-4 gap-2 mb-4">
-                {[
-                  { label: 'Pending', value: 'pending', color: 'yellow' },
-                  { label: 'In Progress', value: 'in_progress', color: 'blue' },
-                  { label: 'Resolved', value: 'resolved', color: 'green' },
-                  { label: 'Rejected', value: 'rejected', color: 'red' }
-                ].map((status) => (
+                {statusOptions.map((status) => (
                   <button
                     key={status.value}
+                    type="button"
                     onClick={() => setUpdateStatusValue(status.value)}
-                    className={`px-3 py-2 rounded-lg text-xs font-semibold transition ${
+                    className={`rounded-lg border-2 px-3 py-2 text-xs font-semibold transition ${
                       updateStatusValue === status.value
-                        ? `bg-${status.color}-600 text-white border-2 border-${status.color}-700`
-                        : `bg-${status.color}-100 text-${status.color}-700 border-2 border-${status.color}-200 hover:border-${status.color}-400`
+                        ? status.activeClass
+                        : status.idleClass
                     }`}
                   >
                     {status.label}

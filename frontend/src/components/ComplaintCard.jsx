@@ -76,6 +76,16 @@ function ComplaintCard({ complaint, onClick }) {
         </div>
       </div>
 
+      {complaint.tags?.length > 0 ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {complaint.tags.map((tag) => (
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600" key={tag.tag_id}>
+              {tag.tag_name}
+            </span>
+          ))}
+        </div>
+      ) : null}
+
       <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
         <span className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition duration-300 group-hover:bg-slate-800">
           View details

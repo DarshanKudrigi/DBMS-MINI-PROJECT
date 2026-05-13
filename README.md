@@ -1,146 +1,314 @@
-# DBMS-MINI PROJECT 1
+# Student Complaint Management System
 
-Clean, minimal student complaint management system built with React (Vite), Node.js/Express and MySQL.
+This is a DBMS mini project built with React, Express, and MySQL. The app lets students register, file complaints, add tags, and track status updates. Department admins can view complaints for their department and update the complaint status.
 
-Key goals:
+## Tech Stack
 
-- Simple demonstration of a full-stack app with authentication and role-based admin features.
-- Small codebase suitable for learning, extension, or quick prototyping.
+- Frontend: React, Vite, Tailwind CSS
+- Backend: Node.js, Express
+- Database: MySQL
+- Authentication: JWT
 
-Contents
+## Database From The Start
 
-- Features — What the project provides
-- Tech stack — Libraries and tools used
-- Quick start — How to run the app locally
-- Backend & Frontend — specific instructions
-- API overview — main endpoints
-- Contributing, license, and contacts
+The database is named `complaint_db`. It stores students, admins, departments, complaints, complaint status history, student profiles, and complaint tags.
 
-Features
-
-- User registration and login (JWT-based)
-- Students can create and view complaints
-- Admin dashboard to view and update complaint status
-- Simple MySQL schema with seedable data
-
-Tech stack
-
-- Frontend: React (Vite) + Tailwind CSS
-- Backend: Node.js + Express
-- Database: MySQL (mysql2)
-
-Prerequisites
-
-- Node.js 16+ and npm
-- MySQL 5.7+ or compatible server
-
-Quick start (development)
-
-1. Clone the repository
+Run the schema from:
 
 ```bash
-git clone https://your-repo-url.git
-cd DBMS-MINI
+backend/schema.sql
 ```
 
-2. Install dependencies (project root runs helpers)
+The schema creates the database, drops old tables in dependency order, recreates the tables, and inserts seed rows for departments, tags, one super admin, and department admins.
+
+## Main Tables
+
+`department`
+
+- Stores department names.
+- Primary key: `department_id`.
+- Used by students while filing complaints and by admins for department-wise access.
+
+`student`
+
+- Stores student login and contact data.
+- Primary key: `student_id`.
+- Unique field: `email`.
+
+`student_profile`
+
+- Stores extra student details.
+- Primary key and foreign key: `student_id`.
+- Demonstrates a `1:1` relationship with `student`.
+
+`admin`
+
+- Stores admin login data.
+- Primary key: `admin_id`.
+- `role` can be `admin` or `super_admin`.
+- `department_id` is nullable because a super admin is not limited to one department.
+
+`complaint`
+
+- Stores the main complaint.
+- Primary key: `complaint_id`.
+- Foreign keys: `student_id`, `department_id`, `handled_by`.
+- `handled_by` is nullable until an admin updates the complaint.
+
+`complaint_status`
+
+- Stores status history for each complaint.
+- Primary key: `status_id`.
+- Foreign keys: `complaint_id`, `updated_by`.
+- Status values: `Pending`, `In Progress`, `Resolved`, `Rejected`.
+
+`tag`
+
+- Stores reusable complaint labels such as `Urgent`, `Safety`, and `Maintenance`.
+- Primary key: `tag_id`.
+
+`complaint_tag`
+
+- Bridge table between `complaint` and `tag`.
+- Composite primary key: `(complaint_id, tag_id)`.
+- Demonstrates an `N:M` relationship.
+
+## Relationship Types Covered
+
+`1:N`
+
+- `department -> complaint`: one department can have many complaints.
+- `student -> complaint`: one student can file many complaints.
+- `complaint -> complaint_status`: one complaint can have many status updates.
+
+`N:M`
+
+- `complaint <-> tag`: one complaint can have many tags, and one tag can belong to many complaints.
+- Implemented using `complaint_tag`.
+
+`1:1`
+
+- `student -> student_profile`: every registered student gets one profile row.
+- Both tables share `student_id`.
+
+Total participation
+
+- Every complaint must belong to a student.
+- Every complaint must belong to a department.
+- Every complaint status update must belong to a complaint and must be updated by an admin.
+
+Partial participation
+
+- A complaint may or may not have `handled_by`.
+- A super admin may or may not have `department_id`.
+
+## Normalization Notes
+
+The schema is designed to avoid common anomalies.
+
+First Normal Form
+
+- Each column stores atomic values.
+- Repeating tag values are not stored inside the complaint row.
+
+Second Normal Form
+
+- The bridge table `complaint_tag` uses a composite key.
+- No non-key attributes depend on only part of that key.
+
+Third Normal Form
+
+- Department names are stored in `department`, not repeated in every complaint.
+- Tag names are stored in `tag`, not repeated in every complaint.
+- Status history is separated from complaint details.
+
+Anomalies avoided
+
+- Update anomaly: department name changes happen once in `department`.
+- Insert anomaly: tags can be created before any complaint uses them.
+- Delete anomaly: deleting a complaint does not delete the tag master data.
+
+## Login Seed Data
+
+Super admin:
+
+```text
+Email: superadmin@college.edu
+Password: superadmin123
+```
+
+Department admins use password:
+
+```text
+admin123
+```
+
+Examples:
+
+```text
+csadmin@college.edu
+isadmin@college.edu
+ecadmin@college.edu
+meadmin@college.edu
+civiladmin@college.edu
+eeadmin@college.edu
+aimladmin@college.edu
+mbaadmin@college.edu
+mcaadmin@college.edu
+generaladmin@college.edu
+```
+
+## How The Flow Works
+
+Student registration:
+
+1. Student enters USN, name, email, phone, semester, section, and password.
+2. Backend validates the USN format.
+3. A row is inserted into `student`.
+4. A matching row is inserted into `student_profile` using the submitted semester and section.
+
+Student complaint flow:
+
+1. Student logs in.
+2. Student selects category, department, issue type, tags, and description.
+3. Backend inserts the complaint into `complaint`.
+4. Selected tags are inserted into `complaint_tag`.
+5. Student dashboard lists the complaint with latest status.
+
+Admin status flow:
+
+1. Admin logs in.
+2. Normal admins see only complaints from their department.
+3. Super admin sees complaints from all departments.
+4. Admin opens a complaint and selects a new status.
+5. Backend updates `complaint.handled_by`.
+6. Backend inserts a new row into `complaint_status`.
+7. The latest status is shown using the newest status history row.
+
+## Important Simple Queries Used
+
+The backend intentionally keeps SQL easy to explain. Instead of one large query with nested subqueries, it runs small queries and combines the result in JavaScript.
+
+Student's complaints:
+
+```sql
+SELECT c.complaint_id, c.title, c.description, c.category, d.dept_name
+FROM complaint c
+JOIN department d ON c.department_id = d.department_id
+WHERE c.student_id = ?;
+```
+
+Complaint status history:
+
+```sql
+SELECT status, remarks, updated_at
+FROM complaint_status
+WHERE complaint_id = ?
+ORDER BY status_id ASC;
+```
+
+The latest status is the last row from this ordered result.
+
+Tags for complaints:
+
+```sql
+SELECT ct.complaint_id, t.tag_name
+FROM complaint_tag ct
+JOIN tag t ON t.tag_id = ct.tag_id
+WHERE ct.complaint_id IN (...);
+```
+
+Department admin's complaints:
+
+```sql
+SELECT *
+FROM complaint
+WHERE department_id = ?;
+```
+
+## API Overview
+
+Auth:
+
+- `POST /api/auth/register`
+- `POST /api/auth/login/student`
+- `POST /api/auth/login/admin`
+- `GET /api/auth/categories`
+
+Student complaints:
+
+- `GET /api/complaints`
+- `POST /api/complaints`
+- `POST /api/complaints/file`
+- `GET /api/complaints/:id`
+- `GET /api/complaints/departments`
+- `GET /api/complaints/tags`
+
+Admin:
+
+- `GET /api/admin/complaints`
+- `GET /api/admin/admins`
+- `PATCH /api/admin/complaints/:id/status`
+
+## Setup
+
+Install dependencies:
 
 ```bash
 npm install
 npm run install:all
 ```
 
-Or install per-package:
+Create `backend/.env`:
 
-```bash
-npm --prefix frontend install
-npm --prefix backend install
+```env
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=complaint_db
+JWT_SECRET=your_secret_key
+PORT=5000
 ```
 
-3. Configure environment variables
-
-- Copy `backend/.env.example` → `backend/.env` and update database and JWT values
-- Copy `frontend/.env.example` → `frontend/.env` to set API base URL if needed
-
-4. Initialize the database
-
-- Run the SQL in `backend/schema.sql` to create tables and any seed data
-
-5. Start both servers (from repo root)
+Initialize database:
 
 ```bash
+cd backend
+npm run init-db
+```
+
+Run app:
+
+```bash
+cd ..
 npm run dev
 ```
 
-Default dev URLs
+Default URLs:
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:5000
+- Frontend: `http://localhost:5173`
+- Backend: `http://localhost:5000`
 
-Backend (details)
+## Project Structure
 
-- Schema: `backend/schema.sql` — run this in your MySQL instance before starting the server
-- Config: database connections and environment variables are defined in `backend/config/db.js`
-- Useful npm scripts (run from `backend` or via `npm --prefix backend run <script>`):
-  - `start` — start server in production mode
-  - `dev` — start server with nodemon
+```text
+backend/
+  config/db.js
+  controllers/
+  routes/
+  middleware/
+  schema.sql
 
-Environment variables (backend)
-
-- `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — MySQL connection
-- `PORT` — Backend port (default: 5000)
-- `JWT_SECRET` — Secret for signing tokens
-- `CLIENT_ORIGIN` — Frontend origin allowed by CORS
-
-Frontend (details)
-
-- Uses Vite for development and Tailwind CSS for styling
-- Useful npm scripts (run from `frontend` or via `npm --prefix frontend run <script>`):
-  - `dev` — start Vite dev server
-  - `build` — build production bundle
-  - `preview` — preview production build
-
-API overview
-Authentication
-
-- `POST /api/auth/register` — register a new user
-- `POST /api/auth/login` — authenticate and receive a JWT
-
-Complaints
-
-- `GET /api/complaints` — list complaints for the authenticated student
-- `POST /api/complaints` — submit a complaint (student)
-
-Admin
-
-- `GET /api/admin/complaints` — list all complaints (admin only)
-- `PATCH /api/admin/complaints/:id/status` — update complaint status (admin only)
-
-Project structure (top-level)
-
-```
-frontend/   # React app
-backend/    # Express API + DB schema
+frontend/
+  src/components/
+  src/pages/
+  src/services/api.js
 ```
 
-Contributing
+## Working Notes
 
-- Contributions are welcome — open an issue or submit a pull request with a clear description of changes.
-
-License
-
-- This repository is provided under the MIT License. Update the file `LICENSE` if you choose another license.
-
-Contact
-
-- For questions or help, open an issue in this repository.
-
----
-
-If you'd like, I can also:
-
-- add a sample `.env.example` files if missing
-- add a `Makefile` or npm scripts to initialize the DB
-- generate a short API reference markdown under `docs/`
-
-Let me know which of the above you'd like next.
+- Passwords are stored as plain text because this is a DBMS mini project demo. For production, use hashing with `bcrypt`.
+- Running `npm run init-db` recreates the database tables and deletes previous data.
+- Department admins can resolve only complaints from their department.
+- Super admin can resolve complaints from any department.

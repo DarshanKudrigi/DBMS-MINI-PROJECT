@@ -14,19 +14,29 @@ function signToken(payload) {
 
 export async function registerStudent(req, res) {
   try {
-    const { student_id: rawStudentId, name, email, phone, password } = req.body;
+    const { student_id: rawStudentId, name, email, phone, password, semester, section } = req.body;
     const studentId = String(rawStudentId || "").trim().toUpperCase();
+    const parsedSemester = Number(semester);
+    const normalizedSection = String(section || "").trim().toUpperCase();
 
-    if (!studentId || !name || !email || !phone || !password) {
+    if (!studentId || !name || !email || !phone || !password || !parsedSemester || !normalizedSection) {
       return res
         .status(400)
-        .json({ message: "student_id, name, email, phone, and password are required" });
+        .json({ message: "student_id, name, email, phone, password, semester, and section are required" });
     }
 
     if (!STUDENT_USN_REGEX.test(studentId)) {
       return res.status(400).json({
         message: "student_id must match USN format like 4NI24IS040"
       });
+    }
+
+    if (!Number.isInteger(parsedSemester) || parsedSemester < 1 || parsedSemester > 8) {
+      return res.status(400).json({ message: "semester must be a number from 1 to 8" });
+    }
+
+    if (!/^[A-Z][0-9A-Z-]{0,9}$/.test(normalizedSection)) {
+      return res.status(400).json({ message: "section must start with a letter and be at most 10 characters" });
     }
 
     const [existing] = await pool.execute(
@@ -38,10 +48,28 @@ export async function registerStudent(req, res) {
       return res.status(409).json({ message: "Student already registered with this email or student_id" });
     }
 
-    const [result] = await pool.execute(
-      "INSERT INTO student (student_id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)",
-      [studentId, name, email, phone, password]
-    );
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      await connection.execute(
+        "INSERT INTO student (student_id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)",
+        [studentId, name, email, phone, password]
+      );
+
+      await connection.execute(
+        "INSERT INTO student_profile (student_id, semester, section) VALUES (?, ?, ?)",
+        [studentId, parsedSemester, normalizedSection]
+      );
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return res.status(201).json({
       message: "Student registration successful",
@@ -49,7 +77,9 @@ export async function registerStudent(req, res) {
         id: studentId,
         name,
         email,
-        phone
+        phone,
+        semester: parsedSemester,
+        section: normalizedSection
       }
     });
   } catch (error) {

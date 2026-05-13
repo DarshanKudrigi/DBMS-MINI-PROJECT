@@ -3,7 +3,13 @@ import ComplaintCard from "../components/ComplaintCard";
 import ComplaintForm from "../components/ComplaintForm";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
-import { createComplaint, getComplaintDetails, getDepartments, getMyComplaints } from "../services/api";
+import {
+  createComplaint,
+  getComplaintDetails,
+  getDepartments,
+  getMyComplaints,
+  getTags
+} from "../services/api";
 
 function formatDateTime(value) {
   if (!value) {
@@ -25,6 +31,7 @@ function StudentDashboard() {
   const { token, user } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [departments, setDepartments] = useState([]);
+  const [tags, setTags] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
@@ -52,8 +59,12 @@ function StudentDashboard() {
   useEffect(() => {
     const loadDepartments = async () => {
       try {
-        const data = await getDepartments(token);
-        setDepartments(data.data || []);
+        const [departmentData, tagData] = await Promise.all([
+          getDepartments(token),
+          getTags(token)
+        ]);
+        setDepartments(departmentData.data || []);
+        setTags(tagData.data || []);
       } catch (err) {
         setError(err.message);
       }
@@ -144,7 +155,8 @@ function StudentDashboard() {
           category: formData.category,
           department_id: formData.department_id,
           issue_type: formData.issue_type,
-          description: formData.description.trim()
+          description: formData.description.trim(),
+          tag_ids: formData.tag_ids
         },
         token
       );
@@ -264,7 +276,7 @@ function StudentDashboard() {
               </button>
             </div>
 
-            <ComplaintForm onSubmit={handleFormSubmit} loading={submitting} departments={departments} />
+            <ComplaintForm onSubmit={handleFormSubmit} loading={submitting} departments={departments} tags={tags} />
           </div>
         </div>
       ) : null}
@@ -303,6 +315,12 @@ function StudentDashboard() {
                       </p>
                       <p>
                         <span className="font-medium text-slate-700">Issue Type:</span> {selectedComplaint.issue_type || "Not specified"}
+                      </p>
+                      <p>
+                        <span className="font-medium text-slate-700">Tags:</span>{" "}
+                        {selectedComplaint.tags?.length > 0
+                          ? selectedComplaint.tags.map((tag) => tag.tag_name).join(", ")
+                          : "None"}
                       </p>
                       <p>
                         <span className="font-medium text-slate-700">Department:</span> {selectedComplaint.dept_name || "Not specified"}

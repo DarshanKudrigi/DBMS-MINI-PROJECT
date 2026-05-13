@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { CATEGORY_SUGGESTIONS, COMPLAINT_CATEGORIES } from "../constants/categories";
 
-function ComplaintForm({ onSubmit, loading = false, departments = [] }) {
+function ComplaintForm({ onSubmit, loading = false, departments = [], tags = [] }) {
   const [form, setForm] = useState({
     category: "Infrastructure",
     department_id: "",
     issue_type: "",
+    tag_ids: [],
     title: "",
     description: ""
   });
@@ -60,6 +61,17 @@ function ComplaintForm({ onSubmit, loading = false, departments = [] }) {
     setForm((prev) => ({ ...prev, department_id: e.target.value }));
   };
 
+  const handleTagToggle = (tagId) => {
+    setForm((prev) => {
+      const exists = prev.tag_ids.includes(tagId);
+
+      return {
+        ...prev,
+        tag_ids: exists ? prev.tag_ids.filter((id) => id !== tagId) : [...prev.tag_ids, tagId]
+      };
+    });
+  };
+
   const handleCustomTitleChange = (e) => {
     setForm((prev) => ({ ...prev, title: e.target.value }));
   };
@@ -76,6 +88,7 @@ function ComplaintForm({ onSubmit, loading = false, departments = [] }) {
       category: form.category,
       department_id: Number(form.department_id),
       issue_type: form.issue_type || "Others",
+      tag_ids: form.tag_ids,
       title: form.title,
       description: form.description
     });
@@ -98,6 +111,28 @@ function ComplaintForm({ onSubmit, loading = false, departments = [] }) {
             </option>
           ))}
         </select>
+      </div>
+
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-slate-900">
+          Select Tags
+        </label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {tags.map((tag) => (
+            <button
+              key={tag.tag_id}
+              type="button"
+              onClick={() => handleTagToggle(tag.tag_id)}
+              className={`rounded-lg border-2 px-3 py-2 text-xs font-medium transition ${
+                form.tag_ids.includes(tag.tag_id)
+                  ? "border-slate-800 bg-slate-800 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              {tag.tag_name}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3">

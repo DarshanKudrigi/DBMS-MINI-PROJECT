@@ -40,10 +40,70 @@ function toDisplayStatus(status) {
   return "Pending";
 }
 
+function normalizeTagIds(tagIds) {
+  if (!Array.isArray(tagIds)) {
+    return [];
+  }
+
+  return [...new Set(tagIds.map((tagId) => Number(tagId)).filter((tagId) => Number.isInteger(tagId)))];
+}
+
+function placeholders(values) {
+  return values.map(() => "?").join(",");
+}
+
+async function getTagsByComplaintIds(complaintIds) {
+  if (complaintIds.length === 0) {
+    return new Map();
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT ct.complaint_id, t.tag_id, t.tag_name
+    FROM complaint_tag ct
+    JOIN tag t ON t.tag_id = ct.tag_id
+    WHERE ct.complaint_id IN (${placeholders(complaintIds)})
+    ORDER BY t.tag_name ASC`,
+    complaintIds
+  );
+
+  const tagsByComplaint = new Map();
+
+  rows.forEach((row) => {
+    const tags = tagsByComplaint.get(row.complaint_id) || [];
+    tags.push({ tag_id: row.tag_id, tag_name: row.tag_name });
+    tagsByComplaint.set(row.complaint_id, tags);
+  });
+
+  return tagsByComplaint;
+}
+
+async function getLatestStatusByComplaintIds(complaintIds) {
+  if (complaintIds.length === 0) {
+    return new Map();
+  }
+
+  const [rows] = await pool.execute(
+    `SELECT complaint_id, status
+    FROM complaint_status
+    WHERE complaint_id IN (${placeholders(complaintIds)})
+    ORDER BY complaint_id ASC, status_id ASC`,
+    complaintIds
+  );
+
+  const statusByComplaint = new Map();
+
+  rows.forEach((row) => {
+    statusByComplaint.set(row.complaint_id, row.status);
+  });
+
+  return statusByComplaint;
+}
+
 export async function createComplaint(req, res) {
-  const { title, description, category, department_id: departmentId, issue_type: issueType } = req.body;
+  const { title, description, category, department_id: departmentId, issue_type: issueType, tag_ids: rawTagIds } = req.body;
   const studentId = String(req.user.id);
   const parsedDepartmentId = Number(departmentId);
+  const tagIds = normalizeTagIds(rawTagIds);
 
   if (!title || !description || !category || !Number.isInteger(parsedDepartmentId)) {
     return res.status(400).json({ message: "title, description, category, and department are required" });
@@ -65,10 +125,45 @@ export async function createComplaint(req, res) {
       return res.status(400).json({ message: "Invalid department" });
     }
 
-    const [result] = await pool.execute(
-      "INSERT INTO complaint (title, description, category, issue_type, student_id, department_id, handled_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [title, description, category, issueType || null, studentId, parsedDepartmentId, null]
-    );
+    let tags = [];
+
+    if (tagIds.length > 0) {
+      const placeholders = tagIds.map(() => "?").join(",");
+      const [tagRows] = await pool.execute(
+        `SELECT tag_id, tag_name FROM tag WHERE tag_id IN (${placeholders}) ORDER BY tag_name ASC`,
+        tagIds
+      );
+
+      if (tagRows.length !== tagIds.length) {
+        return res.status(400).json({ message: "Invalid complaint tag selected" });
+      }
+
+      tags = tagRows;
+    }
+
+    const connection = await pool.getConnection();
+    let result;
+
+    try {
+      await connection.beginTransaction();
+
+      [result] = await connection.execute(
+        "INSERT INTO complaint (title, description, category, issue_type, student_id, department_id, handled_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [title, description, category, issueType || null, studentId, parsedDepartmentId, null]
+      );
+
+      if (tagIds.length > 0) {
+        const values = tagIds.map((tagId) => [result.insertId, tagId]);
+        await connection.query("INSERT INTO complaint_tag (complaint_id, tag_id) VALUES ?", [values]);
+      }
+
+      await connection.commit();
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
 
     return res.status(201).json({
       message: "Complaint submitted",
@@ -81,6 +176,7 @@ export async function createComplaint(req, res) {
         department_id: parsedDepartmentId,
         dept_name: departments[0].dept_name,
         issue_type: issueType || null,
+        tags,
         status: "pending"
       }
     });
@@ -103,32 +199,23 @@ export async function getMyComplaints(req, res) {
         c.department_id,
         d.dept_name,
         c.issue_type,
-        COALESCE(
-          LOWER(REPLACE(cs.status, ' ', '_')),
-          'pending'
-        ) AS status,
         c.submitted_at AS created_at
       FROM complaint c
       JOIN department d ON c.department_id = d.department_id
-      LEFT JOIN (
-        SELECT complaint_id, status
-        FROM complaint_status
-        WHERE status_id IN (
-          SELECT MAX(status_id)
-          FROM complaint_status
-          GROUP BY complaint_id
-        )
-      ) cs ON cs.complaint_id = c.complaint_id
       WHERE c.student_id = ?
       ORDER BY c.complaint_id DESC`,
       [studentId]
     );
+    const complaintIds = rows.map((row) => row.id);
+    const tagsByComplaint = await getTagsByComplaintIds(complaintIds);
+    const statusByComplaint = await getLatestStatusByComplaintIds(complaintIds);
 
     return res.json({
       data: rows.map((row) => ({
         ...row,
-        status: normalizeStatus(row.status),
-        latest_status_label: toDisplayStatus(row.status)
+        tags: tagsByComplaint.get(row.id) || [],
+        status: normalizeStatus(statusByComplaint.get(row.id)),
+        latest_status_label: toDisplayStatus(statusByComplaint.get(row.id))
       }))
     });
   } catch (error) {
@@ -169,22 +256,12 @@ export async function getComplaintDetails(req, res) {
         s.name AS student_name,
         s.email AS student_email,
         s.phone AS student_phone,
-        COALESCE(
-          LOWER(REPLACE(cs.status, ' ', '_')),
-          'pending'
-        ) AS status
+        sp.semester,
+        sp.section
       FROM complaint c
       JOIN student s ON c.student_id = s.student_id
+      LEFT JOIN student_profile sp ON sp.student_id = s.student_id
       JOIN department d ON c.department_id = d.department_id
-      LEFT JOIN (
-        SELECT complaint_id, status
-        FROM complaint_status
-        WHERE status_id IN (
-          SELECT MAX(status_id)
-          FROM complaint_status
-          GROUP BY complaint_id
-        )
-      ) cs ON cs.complaint_id = c.complaint_id
       WHERE c.complaint_id = ? ${isSuperAdmin ? "" : "AND c.department_id = ?"}`;
       params = isSuperAdmin ? [complaintId] : [complaintId, adminDepartmentId];
     } else {
@@ -198,22 +275,9 @@ export async function getComplaintDetails(req, res) {
         c.department_id,
         d.dept_name,
         c.issue_type,
-        c.submitted_at AS created_at,
-        COALESCE(
-          LOWER(REPLACE(cs.status, ' ', '_')),
-          'pending'
-        ) AS status
+        c.submitted_at AS created_at
       FROM complaint c
       JOIN department d ON c.department_id = d.department_id
-      LEFT JOIN (
-        SELECT complaint_id, status
-        FROM complaint_status
-        WHERE status_id IN (
-          SELECT MAX(status_id)
-          FROM complaint_status
-          GROUP BY complaint_id
-        )
-      ) cs ON cs.complaint_id = c.complaint_id
       WHERE c.complaint_id = ? AND c.student_id = ?`;
       params = [complaintId, userId];
     }
@@ -238,12 +302,15 @@ export async function getComplaintDetails(req, res) {
     );
 
     const complaint = complaints[0];
+    const [tagsByComplaint] = await Promise.all([getTagsByComplaintIds([complaintId])]);
+    const latestStatus = historyRows.length > 0 ? historyRows[historyRows.length - 1].status : "Pending";
 
     return res.json({
       data: {
         ...complaint,
-        status: normalizeStatus(complaint.status),
-        latest_status_label: toDisplayStatus(complaint.status),
+        tags: tagsByComplaint.get(complaintId) || [],
+        status: normalizeStatus(latestStatus),
+        latest_status_label: toDisplayStatus(latestStatus),
         status_history: historyRows.map((row) => ({
           ...row,
           status: toDisplayStatus(row.status)
@@ -264,5 +331,15 @@ export async function getDepartments(req, res) {
     return res.json({ data: rows });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch departments", error: error.message });
+  }
+}
+
+export async function getTags(req, res) {
+  try {
+    const [rows] = await pool.execute("SELECT tag_id, tag_name FROM tag ORDER BY tag_name ASC");
+
+    return res.json({ data: rows });
+  } catch (error) {
+    return res.status(500).json({ message: "Failed to fetch tags", error: error.message });
   }
 }
