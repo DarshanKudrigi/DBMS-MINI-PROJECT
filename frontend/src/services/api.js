@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL =
+  (import.meta.env.VITE_API_URL || import.meta.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api").replace(/\/$/, "");
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -28,6 +29,7 @@ export async function registerUser(payload) {
     const response = await api.post("/auth/register", payload);
     return response.data;
   } catch (error) {
+    console.error("Register API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -37,6 +39,7 @@ export async function loginUser(role, payload) {
     const response = await api.post(`/auth/login/${role}`, payload);
     return response.data;
   } catch (error) {
+    console.error(`Login API failed for ${role}:`, error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -46,6 +49,7 @@ export async function getMyComplaints(token) {
     const response = await api.get("/complaints", buildConfig(token));
     return response.data;
   } catch (error) {
+    console.error("Get complaints API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -55,15 +59,7 @@ export async function createComplaint(payload, token) {
     const response = await api.post("/complaints/file", payload, buildConfig(token));
     return response.data;
   } catch (error) {
-    throw new Error(getErrorMessage(error));
-  }
-}
-
-export async function getDepartments(token) {
-  try {
-    const response = await api.get("/complaints/departments", buildConfig(token));
-    return response.data;
-  } catch (error) {
+    console.error("Create complaint API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -73,6 +69,7 @@ export async function getAllComplaints(token) {
     const response = await api.get("/admin/complaints", buildConfig(token));
     return response.data;
   } catch (error) {
+    console.error("Get admin complaints API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -82,6 +79,7 @@ export async function getAdmins(token) {
     const response = await api.get("/admin/admins", buildConfig(token));
     return response.data;
   } catch (error) {
+    console.error("Get admins API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -91,6 +89,7 @@ export async function getComplaintDetails(complaintId, token) {
     const response = await api.get(`/complaints/${complaintId}`, buildConfig(token));
     return response.data;
   } catch (error) {
+    console.error("Get complaint details API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }
@@ -104,6 +103,7 @@ export async function updateComplaintStatus(complaintId, status, token, remarks 
     );
     return response.data;
   } catch (error) {
+    console.error("Update complaint status API failed:", error);
     throw new Error(getErrorMessage(error));
   }
 }

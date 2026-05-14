@@ -3,7 +3,7 @@ import ComplaintCard from "../components/ComplaintCard";
 import ComplaintForm from "../components/ComplaintForm";
 import Navbar from "../components/Navbar";
 import { useAuth } from "../context/AuthContext";
-import { createComplaint, getComplaintDetails, getDepartments, getMyComplaints } from "../services/api";
+import { createComplaint, getComplaintDetails, getMyComplaints } from "../services/api";
 
 function formatDateTime(value) {
   if (!value) {
@@ -24,7 +24,6 @@ function formatDate(value) {
 function StudentDashboard() {
   const { token, user } = useAuth();
   const [complaints, setComplaints] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [showComplaintModal, setShowComplaintModal] = useState(false);
@@ -47,21 +46,6 @@ function StudentDashboard() {
   useEffect(() => {
     setLoading(true);
     loadComplaints().finally(() => setLoading(false));
-  }, [token]);
-
-  useEffect(() => {
-    const loadDepartments = async () => {
-      try {
-        const data = await getDepartments(token);
-        setDepartments(data.data || []);
-      } catch (err) {
-        setError(err.message);
-      }
-    };
-
-    if (token) {
-      loadDepartments();
-    }
   }, [token]);
 
   const studentName = useMemo(() => user?.name || "Student", [user]);
@@ -141,7 +125,6 @@ function StudentDashboard() {
       await createComplaint(
         {
           title: formData.title.trim(),
-          category: formData.category,
           department_id: formData.department_id,
           issue_type: formData.issue_type,
           description: formData.description.trim()
@@ -264,7 +247,7 @@ function StudentDashboard() {
               </button>
             </div>
 
-            <ComplaintForm onSubmit={handleFormSubmit} loading={submitting} departments={departments} />
+            <ComplaintForm onSubmit={handleFormSubmit} loading={submitting} />
           </div>
         </div>
       ) : null}

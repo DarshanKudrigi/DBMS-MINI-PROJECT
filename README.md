@@ -1,146 +1,112 @@
-# DBMS-MINI PROJECT 1
+# DBMS Mini Project
 
-Clean, minimal student complaint management system built with React (Vite), Node.js/Express and MySQL.
+Simple complaint management system using React (Vite), Node.js/Express, and MySQL.
 
-Key goals:
+## Project Overview
 
-- Simple demonstration of a full-stack app with authentication and role-based admin features.
-- Small codebase suitable for learning, extension, or quick prototyping.
+Students can register, log in, and submit complaints. Admins can view complaints for their department and update status.
 
-Contents
+## Features
 
-- Features — What the project provides
-- Tech stack — Libraries and tools used
-- Quick start — How to run the app locally
-- Backend & Frontend — specific instructions
-- API overview — main endpoints
-- Contributing, license, and contacts
+- Student registration and login (JWT auth)
+- Complaint creation and complaint history for students
+- Admin dashboard with complaint status updates
+- Department-based complaint handling
 
-Features
+## Tech Stack
 
-- User registration and login (JWT-based)
-- Students can create and view complaints
-- Admin dashboard to view and update complaint status
-- Simple MySQL schema with seedable data
+- Frontend: React, Vite, Tailwind CSS, Axios
+- Backend: Node.js, Express, mysql2, bcryptjs, jsonwebtoken
+- Database: MySQL
 
-Tech stack
+## Setup
 
-- Frontend: React (Vite) + Tailwind CSS
-- Backend: Node.js + Express
-- Database: MySQL (mysql2)
+### 1) Install dependencies
 
-Prerequisites
-
-- Node.js 16+ and npm
-- MySQL 5.7+ or compatible server
-
-Quick start (development)
-
-1. Clone the repository
-
-```bash
-git clone https://your-repo-url.git
-cd DBMS-MINI
-```
-
-2. Install dependencies (project root runs helpers)
+From project root:
 
 ```bash
 npm install
 npm run install:all
 ```
 
-Or install per-package:
+### 2) Environment variables
+
+Backend:
 
 ```bash
-npm --prefix frontend install
-npm --prefix backend install
+copy backend\\.env.example backend\\.env
 ```
 
-3. Configure environment variables
+Frontend:
 
-- Copy `backend/.env.example` → `backend/.env` and update database and JWT values
-- Copy `frontend/.env.example` → `frontend/.env` to set API base URL if needed
+```bash
+copy frontend\\.env.example frontend\\.env.local
+```
 
-4. Initialize the database
+## MySQL Database Setup
 
-- Run the SQL in `backend/schema.sql` to create tables and any seed data
+- Database: `complaint_db_arun_master`
+- Run schema file:
 
-5. Start both servers (from repo root)
+```bash
+mysql -u root -p < backend/schema.sql
+```
+
+Or use backend script:
+
+```bash
+npm --prefix backend run init-db
+```
+
+## Run Commands
+
+Run frontend + backend together (root):
 
 ```bash
 npm run dev
 ```
 
-Default dev URLs
+Run separately:
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:5000
-
-Backend (details)
-
-- Schema: `backend/schema.sql` — run this in your MySQL instance before starting the server
-- Config: database connections and environment variables are defined in `backend/config/db.js`
-- Useful npm scripts (run from `backend` or via `npm --prefix backend run <script>`):
-  - `start` — start server in production mode
-  - `dev` — start server with nodemon
-
-Environment variables (backend)
-
-- `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME` — MySQL connection
-- `PORT` — Backend port (default: 5000)
-- `JWT_SECRET` — Secret for signing tokens
-- `CLIENT_ORIGIN` — Frontend origin allowed by CORS
-
-Frontend (details)
-
-- Uses Vite for development and Tailwind CSS for styling
-- Useful npm scripts (run from `frontend` or via `npm --prefix frontend run <script>`):
-  - `dev` — start Vite dev server
-  - `build` — build production bundle
-  - `preview` — preview production build
-
-API overview
-Authentication
-
-- `POST /api/auth/register` — register a new user
-- `POST /api/auth/login` — authenticate and receive a JWT
-
-Complaints
-
-- `GET /api/complaints` — list complaints for the authenticated student
-- `POST /api/complaints` — submit a complaint (student)
-
-Admin
-
-- `GET /api/admin/complaints` — list all complaints (admin only)
-- `PATCH /api/admin/complaints/:id/status` — update complaint status (admin only)
-
-Project structure (top-level)
-
-```
-frontend/   # React app
-backend/    # Express API + DB schema
+```bash
+npm --prefix backend run dev
+npm --prefix frontend run dev
 ```
 
-Contributing
+Default local URLs:
 
-- Contributions are welcome — open an issue or submit a pull request with a clear description of changes.
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8000`
 
-License
+## Environment Variables
 
-- This repository is provided under the MIT License. Update the file `LICENSE` if you choose another license.
+Backend (`backend/.env`):
 
-Contact
+- `PORT`
+- `CLIENT_ORIGIN`
+- `DB_HOST`
+- `DB_PORT`
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME` (set to `complaint_db_arun_master`)
+- `JWT_SECRET`
 
-- For questions or help, open an issue in this repository.
+Frontend (`frontend/.env.local`):
 
----
+- `VITE_API_URL` (example: `http://localhost:8000/api`)
 
-If you'd like, I can also:
+## Project Structure
 
-- add a sample `.env.example` files if missing
-- add a `Makefile` or npm scripts to initialize the DB
-- generate a short API reference markdown under `docs/`
-
-Let me know which of the above you'd like next.
+```text
+backend/
+  config/
+  controllers/
+  middleware/
+  routes/
+  schema.sql
+  server.js
+frontend/
+  src/
+  index.html
+```

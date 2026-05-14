@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
 import { COMPLAINT_CATEGORIES } from "../constants/categories.js";
 
@@ -10,6 +11,18 @@ function signToken(payload) {
   }
 
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "7d" });
+}
+
+async function verifyPassword(plainPassword, storedPassword) {
+  if (!storedPassword) {
+    return false;
+  }
+
+  if (storedPassword.startsWith("$2a$") || storedPassword.startsWith("$2b$")) {
+    return bcrypt.compare(plainPassword, storedPassword);
+  }
+
+  return plainPassword === storedPassword;
 }
 
 export async function registerStudent(req, res) {
@@ -38,9 +51,11 @@ export async function registerStudent(req, res) {
       return res.status(409).json({ message: "Student already registered with this email or student_id" });
     }
 
+    const passwordHash = await bcrypt.hash(password, 10);
+
     const [result] = await pool.execute(
       "INSERT INTO student (student_id, name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?)",
-      [studentId, name, email, phone, password]
+      [studentId, name, email, phone, passwordHash]
     );
 
     return res.status(201).json({
@@ -53,6 +68,7 @@ export async function registerStudent(req, res) {
       }
     });
   } catch (error) {
+    console.error("Student registration failed:", error);
     return res.status(500).json({ message: "Failed to register student" });
   }
 }
@@ -75,7 +91,7 @@ export async function loginStudent(req, res) {
     }
 
     const student = students[0];
-    const isPasswordValid = password === student.password_hash;
+    const isPasswordValid = await verifyPassword(password, student.password_hash);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Wrong password" });
@@ -94,6 +110,7 @@ export async function loginStudent(req, res) {
       }
     });
   } catch (error) {
+    console.error("Student login failed:", error);
     if (error.message === "JWT secret is not configured") {
       return res.status(500).json({ message: "JWT secret is not configured" });
     }
@@ -116,11 +133,10 @@ export async function loginAdmin(req, res) {
         a.name,
         a.email,
         a.password_hash,
-        a.role,
         a.department_id,
         d.dept_name
       FROM admin a
-      LEFT JOIN department d ON a.department_id = d.department_id
+      INNER JOIN department d ON a.department_id = d.department_id
       WHERE a.email = ?`,
       [email]
     );
@@ -130,7 +146,7 @@ export async function loginAdmin(req, res) {
     }
 
     const admin = admins[0];
-    const isPasswordValid = password === admin.password_hash;
+    const isPasswordValid = await verifyPassword(password, admin.password_hash);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: "Wrong password" });
@@ -138,7 +154,7 @@ export async function loginAdmin(req, res) {
 
     const token = signToken({
       id: admin.admin_id,
-      role: admin.role,
+      role: "admin",
       name: admin.name,
       department_id: admin.department_id,
       dept_name: admin.dept_name
@@ -149,7 +165,7 @@ export async function loginAdmin(req, res) {
       token,
       user: {
         id: admin.admin_id,
-        role: admin.role,
+        role: "admin",
         name: admin.name,
         email: admin.email,
         department_id: admin.department_id,
@@ -157,6 +173,7 @@ export async function loginAdmin(req, res) {
       }
     });
   } catch (error) {
+    console.error("Admin login failed:", error);
     if (error.message === "JWT secret is not configured") {
       return res.status(500).json({ message: "JWT secret is not configured" });
     }

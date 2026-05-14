@@ -24,10 +24,9 @@ function fromDatabaseStatus(status) {
 
 export async function getAllComplaints(req, res) {
   try {
-    const isSuperAdmin = req.user.role === "super_admin";
     const adminDepartmentId = Number(req.user.department_id);
 
-    if (!isSuperAdmin && !Number.isFinite(adminDepartmentId)) {
+    if (!Number.isFinite(adminDepartmentId)) {
       return res.status(400).json({ message: "Admin department not found" });
     }
 
@@ -36,7 +35,6 @@ export async function getAllComplaints(req, res) {
         c.complaint_id AS id,
         c.title,
         c.description,
-        c.category,
         c.department_id,
         d.dept_name,
         c.issue_type,
@@ -60,42 +58,14 @@ export async function getAllComplaints(req, res) {
           GROUP BY complaint_id
         )
       ) cs ON cs.complaint_id = c.complaint_id
-      ${isSuperAdmin ? "" : "WHERE c.department_id = ?"}
+      WHERE c.department_id = ?
       ORDER BY c.complaint_id DESC`,
-      isSuperAdmin ? [] : [adminDepartmentId]
+      [adminDepartmentId]
     );
 
     return res.json({ data: rows.map((row) => ({ ...row, status: fromDatabaseStatus(row.status) })) });
   } catch (error) {
     return res.status(500).json({ message: "Failed to fetch complaints", error: error.message });
-  }
-}
-
-export async function getAdmins(req, res) {
-  if (req.user.role !== "super_admin") {
-    return res.status(403).json({ message: "Super admin access required" });
-  }
-
-  try {
-    const [rows] = await pool.execute(
-      `SELECT
-        a.admin_id,
-        a.name,
-        a.email,
-        a.role,
-        a.department_id,
-        d.dept_name,
-        COUNT(c.complaint_id) AS total_complaints
-      FROM admin a
-      LEFT JOIN department d ON a.department_id = d.department_id
-      LEFT JOIN complaint c ON c.department_id = a.department_id
-      GROUP BY a.admin_id, a.name, a.email, a.role, a.department_id, d.dept_name
-      ORDER BY a.role DESC, d.dept_name ASC, a.name ASC`
-    );
-
-    return res.json({ data: rows });
-  } catch (error) {
-    return res.status(500).json({ message: "Failed to fetch admins", error: error.message });
   }
 }
 
@@ -109,18 +79,15 @@ export async function updateComplaintStatus(req, res) {
   }
 
   try {
-    const isSuperAdmin = req.user.role === "super_admin";
     const adminDepartmentId = Number(req.user.department_id);
 
-    if (!isSuperAdmin && !Number.isFinite(adminDepartmentId)) {
+    if (!Number.isFinite(adminDepartmentId)) {
       return res.status(400).json({ message: "Admin department not found" });
     }
 
     const [complaints] = await pool.execute(
-      `SELECT complaint_id FROM complaint WHERE complaint_id = ? ${
-        isSuperAdmin ? "" : "AND department_id = ?"
-      }`,
-      isSuperAdmin ? [complaintId] : [complaintId, adminDepartmentId]
+      `SELECT complaint_id FROM complaint WHERE complaint_id = ? AND department_id = ?`,
+      [complaintId, adminDepartmentId]
     );
 
     if (complaints.length === 0) {

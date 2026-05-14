@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getAdmins, getAllComplaints, getComplaintDetails, updateComplaintStatus } from '../services/api';
+import { getAllComplaints, getComplaintDetails, updateComplaintStatus } from '../services/api';
 
 function AdminDashboard() {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [stats, setStats] = useState({ pending: 0, in_progress: 0, resolved: 0, rejected: 0 });
-  const [admins, setAdmins] = useState([]);
   const [complaints, setComplaints] = useState([]);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [selectedStatus, setSelectedStatus] = useState('all');
@@ -63,12 +62,6 @@ function AdminDashboard() {
         };
         setStats(statsData);
 
-        if (user?.role === 'super_admin') {
-          const adminResponse = await getAdmins(token);
-          setAdmins(adminResponse.data || []);
-        } else {
-          setAdmins([]);
-        }
       } catch (error) {
         console.error('Failed to fetch complaints:', error);
         setError(error.message || 'Failed to fetch dashboard data');
@@ -200,7 +193,7 @@ function AdminDashboard() {
               <h2 className="text-xl font-bold text-gray-900">Admin Dashboard</h2>
               <div className="h-6 border-l border-gray-300"></div>
               <div className="inline-block bg-blue-100 text-blue-700 rounded-full px-4 py-1 text-sm font-medium">
-                {user.role === 'super_admin' ? 'Super Admin' : user.dept_name || 'Department'}
+                {user.dept_name || 'Department'}
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -243,7 +236,7 @@ function AdminDashboard() {
           <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
         ) : null}
 
-        <div className="grid gap-6 mb-8 lg:grid-cols-2">
+        <div className="grid gap-6 mb-8">
           <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-800">Status Graph</h3>
@@ -267,42 +260,6 @@ function AdminDashboard() {
             </div>
           </section>
 
-          <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800">
-              {user.role === 'super_admin' ? 'Admin Control' : 'Department Scope'}
-            </h3>
-            {user.role === 'super_admin' ? (
-              <div className="mt-4 max-h-64 overflow-y-auto">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-xs uppercase text-gray-500">
-                    <tr>
-                      <th className="px-3 py-2 text-left">Admin</th>
-                      <th className="px-3 py-2 text-left">Department</th>
-                      <th className="px-3 py-2 text-left">Complaints</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {admins.map((admin) => (
-                      <tr key={admin.admin_id} className="border-b border-gray-100">
-                        <td className="px-3 py-2">
-                          <p className="font-medium text-gray-800">{admin.name}</p>
-                          <p className="text-xs text-gray-500">{admin.email}</p>
-                        </td>
-                        <td className="px-3 py-2 text-gray-700">
-                          {admin.role === 'super_admin' ? 'All departments' : admin.dept_name || 'N/A'}
-                        </td>
-                        <td className="px-3 py-2 font-semibold text-gray-800">{admin.total_complaints || 0}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="mt-4 text-sm leading-6 text-gray-600">
-                You can view and update all complaint categories from {user.dept_name || 'your department'}.
-              </p>
-            )}
-          </section>
         </div>
 
         {/* Filter Tabs */}

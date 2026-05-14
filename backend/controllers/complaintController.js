@@ -41,12 +41,12 @@ function toDisplayStatus(status) {
 }
 
 export async function createComplaint(req, res) {
-  const { title, description, category, department_id: departmentId, issue_type: issueType } = req.body;
+  const { title, description, department_id: departmentId, issue_type: issueType } = req.body;
   const studentId = String(req.user.id);
   const parsedDepartmentId = Number(departmentId);
 
-  if (!title || !description || !category || !Number.isInteger(parsedDepartmentId)) {
-    return res.status(400).json({ message: "title, description, category, and department are required" });
+  if (!title || !description || !Number.isInteger(parsedDepartmentId)) {
+    return res.status(400).json({ message: "title, description, and department are required" });
   }
 
   try {
@@ -66,8 +66,8 @@ export async function createComplaint(req, res) {
     }
 
     const [result] = await pool.execute(
-      "INSERT INTO complaint (title, description, category, issue_type, student_id, department_id, handled_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [title, description, category, issueType || null, studentId, parsedDepartmentId, null]
+      "INSERT INTO complaint (title, description, issue_type, student_id, department_id) VALUES (?, ?, ?, ?, ?)",
+      [title, description, issueType || null, studentId, parsedDepartmentId]
     );
 
     return res.status(201).json({
@@ -77,7 +77,6 @@ export async function createComplaint(req, res) {
         student_id: studentId,
         title,
         description,
-        category,
         department_id: parsedDepartmentId,
         dept_name: departments[0].dept_name,
         issue_type: issueType || null,
@@ -99,7 +98,6 @@ export async function getMyComplaints(req, res) {
         c.student_id,
         c.title,
         c.description,
-        c.category,
         c.department_id,
         d.dept_name,
         c.issue_type,
@@ -140,7 +138,6 @@ export async function getComplaintDetails(req, res) {
   const complaintId = Number(req.params.id);
   const userId = String(req.user.id);
   const userRole = req.user.role;
-  const isSuperAdmin = userRole === "super_admin";
   const adminDepartmentId = Number(req.user.department_id);
 
   if (!Number.isFinite(complaintId)) {
@@ -151,8 +148,8 @@ export async function getComplaintDetails(req, res) {
     let query;
     let params;
 
-    if (userRole === "admin" || isSuperAdmin) {
-      if (!isSuperAdmin && !Number.isFinite(adminDepartmentId)) {
+    if (userRole === "admin") {
+      if (!Number.isFinite(adminDepartmentId)) {
         return res.status(400).json({ message: "Admin department not found" });
       }
 
@@ -161,7 +158,6 @@ export async function getComplaintDetails(req, res) {
         c.student_id,
         c.title,
         c.description,
-        c.category,
         c.department_id,
         d.dept_name,
         c.issue_type,
@@ -185,16 +181,14 @@ export async function getComplaintDetails(req, res) {
           GROUP BY complaint_id
         )
       ) cs ON cs.complaint_id = c.complaint_id
-      WHERE c.complaint_id = ? ${isSuperAdmin ? "" : "AND c.department_id = ?"}`;
-      params = isSuperAdmin ? [complaintId] : [complaintId, adminDepartmentId];
+      WHERE c.complaint_id = ? AND c.department_id = ?`;
+      params = [complaintId, adminDepartmentId];
     } else {
-      // Student can only view their own complaints
       query = `SELECT
         c.complaint_id AS id,
         c.student_id,
         c.title,
         c.description,
-        c.category,
         c.department_id,
         d.dept_name,
         c.issue_type,

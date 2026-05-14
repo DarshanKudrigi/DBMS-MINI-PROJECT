@@ -1,5 +1,5 @@
-CREATE DATABASE IF NOT EXISTS complaint_db;
-USE complaint_db;
+CREATE DATABASE IF NOT EXISTS complaint_db_arun_master;
+USE complaint_db_arun_master;
 
 DROP TABLE IF EXISTS complaint_status;
 DROP TABLE IF EXISTS complaint;
@@ -17,15 +17,10 @@ CREATE TABLE department (
 );
 
 INSERT INTO department (dept_name) VALUES
-('Computer Science'),
-('Information Science'),
-('Electronics and Communication'),
-('Mechanical'),
-('Civil'),
-('Electrical and Electronics'),
-('Artificial Intelligence and Machine Learning'),
-('MBA'),
-('MCA'),
+('Infrastructure'),
+('Faculty'),
+('Library'),
+('Hostel'),
 ('Others');
 
 -- =========================
@@ -49,8 +44,7 @@ CREATE TABLE admin (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'super_admin') NOT NULL DEFAULT 'admin',
-    department_id INT UNIQUE NULL,
+    department_id INT NOT NULL UNIQUE,
 
     FOREIGN KEY (department_id)
         REFERENCES department(department_id)
@@ -59,9 +53,13 @@ CREATE TABLE admin (
 );
 
 INSERT INTO admin
-(name, email, password_hash, role, department_id)
+(name, email, password_hash, department_id)
 VALUES
-('Super Admin', 'superadmin@college.edu', 'superadmin123', 'super_admin', NULL);
+('Infrastructure Admin', 'infrastructure@college.edu', 'password123', 1),
+('Faculty Admin', 'faculty@college.edu', 'password123', 2),
+('Library Admin', 'library@college.edu', 'password123', 3),
+('Hostel Admin', 'hostel@college.edu', 'password123', 4),
+('Others Admin', 'others@college.edu', 'password123', 5);
 
 -- =========================
 -- COMPLAINT TABLE
@@ -71,22 +69,12 @@ CREATE TABLE complaint (
     complaint_id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     description TEXT NOT NULL,
-
-    category ENUM(
-        'Infrastructure',
-        'Faculty',
-        'Library',
-        'Hostel',
-        'Others'
-    ) NOT NULL,
-
     issue_type VARCHAR(255),
 
     submitted_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     student_id VARCHAR(20) NOT NULL,
     department_id INT NOT NULL,
-    handled_by INT NULL,
 
     FOREIGN KEY (student_id)
         REFERENCES student(student_id)
@@ -97,11 +85,6 @@ CREATE TABLE complaint (
         REFERENCES department(department_id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
-
-    FOREIGN KEY (handled_by)
-        REFERENCES admin(admin_id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL
 );
 
 -- =========================
