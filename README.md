@@ -1,6 +1,6 @@
 # DBMS Mini Project
 
-Simple complaint management system using React (Vite), Node.js/Express, and MySQL.
+Simple complaint management system using React (Vite), Node.js/Express, and MySQL/mysql12.
 
 ## Project Overview
 
